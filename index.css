@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --bg-color: #f7f9fc;
+    --card-bg-color: #ffffff;
+    --font-color: #1a1a1a;
+    --subtle-font-color: #555;
+    --border-color: #e5e7eb;
+    --shadow-color: rgba(0, 0, 0, 0.05);
+    
+    --c1: #1f77b4; --c2: #ff7f0e; --c3: #2ca02c; --c4: #d62728; --c5: #9467bd;
+}
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--font-color);
+    margin: 0;
+    padding: 2rem;
+}
+#main-container {
+    max-width: 1800px;
+    margin: auto;
+}
+header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+header p {
+    font-size: 1.1rem;
+    color: var(--subtle-font-color);
+    max-width: 700px;
+    margin: auto;
+}
+.controls {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+#reset-button {
+    background-color: var(--c1);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+#reset-button:hover {
+    background-color: #165a88;
+}
+.dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+.chart-container {
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+.full-width { grid-column: 1 / -1; }
+
+h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+svg { width: 100%; height: auto; }
+.bar { transition: all 0.2s ease-in-out; }
+.bar:hover, .bar.selected { fill: var(--c2); }
+.axis-x .tick text, .axis-y .tick text { font-size: 14px; color: var(--subtle-font-color); }
+.axis-label { font-size: 16px; font-weight: 500; fill: var(--font-color); }
+.brush .selection { fill: var(--c2); fill-opacity: 0.2; }
+.tooltip {
+    position: absolute;
+    background-color: rgba(26, 26, 26, 0.9);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    text-align: left;
+    line-height: 1.5;
+}
+
+/* Estilos para o Gráfico de Bolhas */
+.bubble {
+    stroke: white;
+    stroke-width: 1px;
+}
+.bubble-label {
+    font-size: 14px;
+    font-weight: 500;
+    fill: white;
+    text-anchor: middle;
+    pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* Loader */
+#loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(247, 249, 252, 0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
+.spinner { border: 8px solid #e5e7eb; border-top: 8px solid var(--c1); border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }

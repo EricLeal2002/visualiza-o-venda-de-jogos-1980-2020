@@ -1,0 +1,16 @@
+{
+  "name": "projeto-videogame",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npx vite",
+    "build": "npx vite build",
+    "preview": "npx vite preview"
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.29.1-dev132.0",
+    "d3": "^7.9.0"
+  },
+  "devDependencies": {
+    "vite": "^5.2.11"
+  }
+}

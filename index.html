@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="index.css">
+    <title>Dashboard de Vendas de Videogames</title>
+</head>
+<body>
+    <div id="loader"><div class="spinner"></div></div>
+
+    <div id="main-container">
+        <header>
+            <h1>Dashboard de Vendas de Videogames</h1>
+            <p>Uma exploração interativa das vendas globais de videogames. Use os gráficos para filtrar</p>
+        </header>
+
+        <div class="controls">
+            <button id="reset-button">Limpar Todos os Filtros</button>
+        </div>
+
+        <div class="dashboard">
+            <div class="chart-container full-width">
+                <h2>Vendas Globais por Ano <span id="timeline-range-display" style="color: var(--secondary-color); font-weight: 500;">(Todos os anos)</span></h2>
+                <svg id="timeline-chart"></svg>
+            </div>
+            
+            <div class="chart-container">
+                <h2>Top 10 Gêneros</h2>
+                <svg id="genre-chart"></svg>
+            </div>
+            <div class="chart-container">
+                <h2>Top 10 Plataformas</h2>
+                <svg id="platform-chart"></svg>
+            </div>
+            
+            <div class="chart-container">
+                <h2>Top 15 Jogos</h2>
+                <svg id="top-games-chart"></svg>
+            </div>
+            <div class="chart-container">
+                <h2>Publishers</h2>
+                <svg id="bubble-chart"></svg>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tooltip"></div>
+
+    <script type="module">
+        import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
+        import { VideoGames } from './src/videogames.js';
+
+        const state = { yearRange: null, genre: null, platform: null };
+        let top10Platforms = [];
+
+        const vgs = new VideoGames();
+        const loader = document.getElementById('loader');
+        const tooltip = d3.select(".tooltip");
+        const resetButton = document.getElementById('reset-button');
+        const rangeDisplay = document.getElementById('timeline-range-display');
+
+        async function main() {
+            try {
+                await vgs.init();
+                await vgs.loadData();
+                
+                const platformData = await vgs.query(`SELECT "Platform" FROM ${vgs.table} GROUP BY "Platform" ORDER BY SUM("Global_Sales") DESC LIMIT 10;`);
+                top10Platforms = platformData.map(p => p.Platform);
+                
+                loader.style.display = 'none';
+                await updateAllCharts();
+
+                resetButton.addEventListener('click', async () => {
+                    state.yearRange = null; state.genre = null; state.platform = null;
+                    d3.select("#timeline-chart").select(".brush").call(d3.brush().clear);
+                    rangeDisplay.textContent = "(Todos os anos)";
+                    await updateAllCharts();
+                });
+            } catch(e) { console.error(e); }
+        }
+        main();
+
+        async function updateAllCharts() {
+            await Promise.all([
+                renderTimeline(),
+                renderGenreChart(),
+                renderPlatformChart(),
+                renderTopGamesChart(),
+                renderBubbleChart()
+            ]);
+        }
+        
+        // --- FUNÇÕES DE RENDERIZAÇÃO ---
+
+        async function renderTimeline() {
+            const data = await vgs.query(`SELECT "Year", SUM("Global_Sales") AS total FROM ${vgs.table} GROUP BY "Year" ORDER BY "Year";`);
+            const margin = {top: 20, right: 20, bottom: 40, left: 60};
+            const width = 1700 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+
+            const svg = d3.select("#timeline-chart").html("").append("svg").attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            const xScale = d3.scaleLinear().domain(d3.extent(data, d => d.Year)).range([0, width]);
+            const yScale = d3.scaleLinear().domain([0, d3.max(data, d => d.total)]).nice().range([height, 0]);
+
+            svg.append("g").attr("transform", `translate(0, ${height})`).call(d3.axisBottom(xScale).tickFormat(d3.format("d")));
+            svg.append("g").call(d3.axisLeft(yScale));
+            
+            // Gráfico de Área
+            const area = d3.area().x(d => xScale(d.Year)).y0(height).y1(d => yScale(d.total));
+            svg.append("path").datum(data).attr("fill", "var(--c1)").attr("fill-opacity", 0.3).attr("d", area);
+            svg.append("path").datum(data).attr("fill", "none").attr("stroke", "var(--c1)").attr("stroke-width", 2.5).attr("d", d3.line().x(d => xScale(d.Year)).y(d => yScale(d.total)));
+
+            const brush = d3.brushX().extent([[0, 0], [width, height]]).on("end", async (event) => {
+                if (!event.sourceEvent) return;
+                state.yearRange = event.selection ? event.selection.map(xScale.invert).map(Math.round) : null;
+                rangeDisplay.textContent = state.yearRange ? `Período: ${state.yearRange[0]} - ${state.yearRange[1]}` : "(Todos os anos)";
+                await updateAllCharts();
+            });
+            svg.append("g").attr("class", "brush").call(brush);
+        }
+
+        async function renderGenreChart() {
+            const whereClauses = [];
+            if (state.yearRange) whereClauses.push(`"Year" BETWEEN ${state.yearRange[0]} AND ${state.yearRange[1]}`);
+            if (state.platform) whereClauses.push(`"Platform" = '${state.platform}'`);
+            const where = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+            const data = await vgs.query(`SELECT "Genre", SUM("Global_Sales") AS total FROM ${vgs.table} ${where} GROUP BY "Genre" ORDER BY total DESC LIMIT 10;`);
+            
+            const margin = {top: 20, right: 20, bottom: 40, left: 120};
+            const width = 800 - margin.left - margin.right;
+            const height = 600 - margin.top - margin.bottom;
+
+            const svg = d3.select("#genre-chart").html("").append("svg").attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            const xScale = d3.scaleLinear().domain([0, d3.max(data, d => d.total)]).nice().range([0, width]);
+            const yScale = d3.scaleBand().domain(data.map(d => d.Genre).reverse()).range([height, 0]).padding(0.15);
+
+            svg.append("g").attr("transform", `translate(0, ${height})`).call(d3.axisBottom(xScale).ticks(5).tickSize(-height)).select(".domain").remove();
+            svg.selectAll("g.tick line").attr("stroke", "#e5e7eb").attr("stroke-dasharray", "2,2");
+            svg.append("g").call(d3.axisLeft(yScale)).select(".domain").remove();
+            
+            svg.selectAll(".bar").data(data).join("rect").attr("class", "bar").classed("selected", d => d.Genre === state.genre).attr("y", d => yScale(d.Genre)).attr("height", yScale.bandwidth()).attr("x", 0).attr("width", 0).transition().duration(500).attr("width", d => xScale(d.total));
+            svg.selectAll(".bar").on("click", async (event, d) => { state.genre = state.genre === d.Genre ? null : d.Genre; await updateAllCharts(); });
+        }
+
+        async function renderPlatformChart() {
+            const whereClauses = [`"Platform" IN (${top10Platforms.map(p => `'${p}'`).join(',')})`];
+            if (state.yearRange) whereClauses.push(`"Year" BETWEEN ${state.yearRange[0]} AND ${state.yearRange[1]}`);
+            if (state.genre) whereClauses.push(`"Genre" = '${state.genre}'`);
+            
+            const dataQuery = await vgs.query(`SELECT "Platform", SUM("Global_Sales") AS total FROM ${vgs.table} WHERE ${whereClauses.join(' AND ')} GROUP BY "Platform";`);
+            const dataMap = new Map(dataQuery.map(d => [d.Platform, d.total]));
+            const data = top10Platforms.map(p => ({ Platform: p, total: dataMap.get(p) || 0 }));
+
+            const margin = {top: 20, right: 20, bottom: 40, left: 100};
+            const width = 800 - margin.left - margin.right;
+            const height = 600 - margin.top - margin.bottom;
+
+            const svg = d3.select("#platform-chart").html("").append("svg").attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            const xScale = d3.scaleLinear().domain([0, d3.max(data, d => d.total) || 1]).nice().range([0, width]);
+            const yScale = d3.scaleBand().domain(top10Platforms.slice().reverse()).range([height, 0]).padding(0.15);
+
+            svg.append("g").attr("transform", `translate(0, ${height})`).call(d3.axisBottom(xScale).ticks(5).tickSize(-height)).select(".domain").remove();
+            svg.selectAll("g.tick line").attr("stroke", "#e5e7eb").attr("stroke-dasharray", "2,2");
+            svg.append("g").call(d3.axisLeft(yScale)).select(".domain").remove();
+
+            svg.selectAll(".bar").data(data, d => d.Platform).join("rect").attr("class", "bar").classed("selected", d => d.Platform === state.platform).attr("y", d => yScale(d.Platform)).attr("height", yScale.bandwidth()).attr("x", 0).transition().duration(500).attr("width", d => xScale(d.total));
+            svg.selectAll(".bar").on("click", async (event, d) => { state.platform = state.platform === d.Platform ? null : d.Platform; await updateAllCharts(); });
+        }
+
+        async function renderTopGamesChart() {
+            const whereClauses = [];
+            if (state.yearRange) whereClauses.push(`"Year" BETWEEN ${state.yearRange[0]} AND ${state.yearRange[1]}`);
+            if (state.genre) whereClauses.push(`"Genre" = '${state.genre}'`);
+            if (state.platform) whereClauses.push(`"Platform" = '${state.platform}'`);
+            const where = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+            
+            const data = await vgs.query(`SELECT "Name", "Global_Sales" FROM ${vgs.table} ${where} ORDER BY "Global_Sales" DESC LIMIT 15;`);
+
+            const chartContainer = d3.select("#top-games-chart");
+            chartContainer.html("");
+
+            if (data.length === 0) {
+                chartContainer.append("h3").text("Nenhum jogo encontrado.").style("text-align", "center").style("margin-top", "5rem"); return;
+            }
+            
+            const margin = {top: 20, right: 20, bottom: 40, left: 250};
+            const width = 800 - margin.left - margin.right;
+            const height = 600 - margin.top - margin.bottom;
+
+            const svg = chartContainer.append("svg").attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            const xScale = d3.scaleLinear().domain([0, d3.max(data, d => d.Global_Sales)]).nice().range([0, width]);
+            const yScale = d3.scaleBand().domain(data.map(d => d.Name).reverse()).range([height, 0]).padding(0.1);
+
+            svg.append("g").attr("transform", `translate(0, ${height})`).call(d3.axisBottom(xScale).ticks(5).tickSize(-height)).select(".domain").remove();
+            svg.selectAll("g.tick line").attr("stroke", "#e5e7eb").attr("stroke-dasharray", "2,2");
+            svg.append("g").call(d3.axisLeft(yScale)).selectAll(".tick text").call(wrap, margin.left - 10);
+            
+            svg.selectAll(".bar").data(data).join("rect").attr("class", "bar").attr("y", d => yScale(d.Name)).attr("height", yScale.bandwidth()).attr("x", 0).attr("width", 0).transition().duration(500).attr("width", d => xScale(d.Global_Sales));
+        }
+
+        async function renderBubbleChart() {
+            const whereClauses = [];
+            if (state.yearRange) whereClauses.push(`"Year" BETWEEN ${state.yearRange[0]} AND ${state.yearRange[1]}`);
+            if (state.genre) whereClauses.push(`"Genre" = '${state.genre}'`);
+            if (state.platform) whereClauses.push(`"Platform" = '${state.platform}'`);
+            const where = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+            const data = await vgs.query(`SELECT "Publisher", SUM("Global_Sales") as total FROM ${vgs.table} ${where} GROUP BY "Publisher" HAVING total > 1 ORDER BY total DESC LIMIT 40;`);
+
+            const chartContainer = d3.select("#bubble-chart");
+            chartContainer.html("");
+
+            if (data.length === 0) {
+                chartContainer.append("h3").text("Nenhuma publisher encontrada.").style("text-align", "center").style("margin-top", "5rem"); return;
+            }
+
+            const width = 800;
+            const height = 600;
+
+            const pack = d3.pack().size([width, height]).padding(5);
+            const root = pack(d3.hierarchy({children: data}).sum(d => d.total));
+            
+            const svg = chartContainer.append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("font-size", 10).attr("text-anchor", "middle");
+            const color = d3.scaleOrdinal(data.map(d => d.Publisher), d3.schemeTableau10);
+            
+            const node = svg.selectAll("g").data(root.leaves()).join("g").attr("transform", d => `translate(${d.x},${d.y})`);
+            node.append("circle").attr("class", "bubble").attr("r", d => d.r).attr("fill", d => color(d.data.Publisher)).attr("fill-opacity", 0.8);
+            
+            const label = node.append("text").attr("class", "bubble-label");
+            label.selectAll("tspan").data(d => d.data.Publisher.split(/(?=[A-Z][a-z])|\s+/g)).join("tspan")
+                .attr("x", 0).attr("y", (d, i, nodes) => `${i - nodes.length / 2 + 0.8}em`)
+                .text(d => d);
+            label.style("display", d => d.r < 25 ? "none" : "inline");
+
+            node.on("mouseover", (event, d) => tooltip.style("opacity", 1)).on("mousemove", (event, d) => { tooltip.html(`<b>${d.data.Publisher}</b><br>Vendas: ${d.data.total.toFixed(2)}M`).style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 28) + "px"); }).on("mouseout", () => tooltip.style("opacity", 0));
+        }
+
+        // Função para quebrar texto em múltiplas linhas (usada no gráfico de jogos)
+        function wrap(text, width) {
+            text.each(function() {
+                var text = d3.select(this), words = text.text().split(/\s+/).reverse(), word, line = [], lineNumber = 0,
+                    lineHeight = 1.1, y = text.attr("y"), dy = parseFloat(text.attr("dy") || 0),
+                    tspan = text.text(null).append("tspan").attr("x", -10).attr("y", y).attr("dy", dy + "em");
+                while (word = words.pop()) {
+                    line.push(word);
+                    tspan.text(line.join(" "));
+                    if (tspan.node().getComputedTextLength() > width) {
+                        line.pop();
+                        tspan.text(line.join(" "));
+                        line = [word];
+                        tspan = text.append("tspan").attr("x", -10).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+                    }
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>
