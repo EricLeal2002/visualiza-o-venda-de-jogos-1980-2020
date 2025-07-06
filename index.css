@@ -71,18 +71,35 @@ header p {
 .full-width { grid-column: 1 / -1; }
 
 h2 {
-    font-size: 1.25rem;
+    font-size: 1.5rem; /* Aumentado */
     font-weight: 600;
     margin-top: 0;
     margin-bottom: 1.5rem;
     text-align: left;
 }
-svg { width: 100%; height: auto; }
-.bar { transition: all 0.2s ease-in-out; }
+svg { 
+    width: 100%; 
+    height: auto; 
+    overflow: visible; /* Para garantir que os textos não sejam cortados */
+}
+.bar { 
+    cursor: pointer;
+    transition: all 0.2s ease-in-out; 
+}
 .bar:hover, .bar.selected { fill: var(--c2); }
-.axis-x .tick text, .axis-y .tick text { font-size: 14px; color: var(--subtle-font-color); }
-.axis-label { font-size: 16px; font-weight: 500; fill: var(--font-color); }
-.brush .selection { fill: var(--c2); fill-opacity: 0.2; }
+.tick text {
+    font-size: 14px; /* Aumentado */
+    fill: var(--subtle-font-color);
+}
+.axis-label { 
+    font-size: 16px; 
+    font-weight: 500; 
+    fill: var(--font-color); 
+}
+.brush .selection { 
+    fill: var(--c2); 
+    fill-opacity: 0.2; 
+}
 .tooltip {
     position: absolute;
     background-color: rgba(26, 26, 26, 0.9);
@@ -95,6 +112,12 @@ svg { width: 100%; height: auto; }
     transition: opacity 0.2s;
     text-align: left;
     line-height: 1.5;
+}
+.bar-label {
+    font-size: 14px;
+    font-weight: 500;
+    fill: #333;
+    pointer-events: none;
 }
 
 /* Estilos para o Gráfico de Bolhas */
