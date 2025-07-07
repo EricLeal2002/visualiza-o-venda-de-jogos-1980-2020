@@ -39,6 +39,10 @@ header p {
 .controls {
     text-align: center;
     margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 #reset-button {
     background-color: var(--c1);
@@ -67,7 +71,24 @@ header p {
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
+    height: auto;
+    min-height: 400px;
 }
+
+.chart-container.top-games {
+    height: auto;
+    min-height: 700px; /* ou mais, se necessário */
+}
+
+.chart-container.publishers {
+    height: 800px;
+}
+
+#bubble-chart {
+    width: 100%;
+    height: 100%;
+}
+
 .full-width { grid-column: 1 / -1; }
 
 h2 {
@@ -85,6 +106,7 @@ svg {
 .bar { 
     cursor: pointer;
     transition: all 0.2s ease-in-out; 
+    fill: steelblue;
 }
 .bar:hover, .bar.selected { fill: var(--c2); }
 .tick text {
@@ -132,6 +154,22 @@ svg {
     text-anchor: middle;
     pointer-events: none;
     text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.filters-active {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f0f4f8;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    display: inline-block;
+    font-size: 0.95rem;
+    color: var(--font-color);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.filters-active strong {
+    color: var(--c1);
 }
 
 /* Loader */

@@ -17,11 +17,13 @@
 
         <div class="controls">
             <button id="reset-button">Limpar Todos os Filtros</button>
+            <div class="filters-active" id="filters-active"> </div>
         </div>
+
 
         <div class="dashboard">
             <div class="chart-container full-width">
-                <h2>Vendas Globais por Ano <span id="timeline-range-display" style="color: var(--secondary-color); font-weight: 500;">(Todos os anos)</span></h2>
+                <h2>Vendas Globais por Ano </h2>
                 <svg id="timeline-chart"></svg>
             </div>
             
@@ -34,15 +36,23 @@
                 <svg id="platform-chart"></svg>
             </div>
             
-            <div class="chart-container">
+            <div class="chart-container top-games">
                 <h2>Top 15 Jogos</h2>
                 <svg id="top-games-chart"></svg>
             </div>
-            <div class="chart-container">
+            <div class="chart-container publishers">
                 <h2>Publishers</h2>
                 <svg id="bubble-chart"></svg>
             </div>
         </div>
+        <!-- <div class="chart-container top-games">
+            <h2>Top 15 Jogos</h2>
+            <svg id="top-games-chart"></svg>
+        </div> -->
+        <!-- <div class="chart-containerrr">
+            <h2>Publishers</h2>
+            <svg id="bubble-chart"></svg>
+        </div> -->
     </div>
     
     <div class="tooltip"></div>
@@ -58,7 +68,7 @@
         const loader = document.getElementById('loader');
         const tooltip = d3.select(".tooltip");
         const resetButton = document.getElementById('reset-button');
-        const rangeDisplay = document.getElementById('timeline-range-display');
+        // const rangeDisplay = document.getElementById('timeline-range-display');
 
         async function main() {
             try {
@@ -74,7 +84,7 @@
                 resetButton.addEventListener('click', async () => {
                     state.yearRange = null; state.genre = null; state.platform = null;
                     d3.select("#timeline-chart").select(".brush").call(d3.brush().clear);
-                    rangeDisplay.textContent = "(Todos os anos)";
+                    // rangeDisplay.textContent = "(Todos os anos)";
                     await updateAllCharts();
                 });
             } catch(e) { console.error(e); }
@@ -89,6 +99,25 @@
                 renderTopGamesChart(),
                 renderBubbleChart()
             ]);
+
+            renderActiveFilters();
+        }
+
+        function renderActiveFilters() {
+            const container = document.getElementById("filters-active");
+            const filters = [];
+
+            if (state.yearRange) {
+                filters.push(`<strong>Ano:</strong> ${state.yearRange[0]} - ${state.yearRange[1]}`);
+            }
+            if (state.genre) {
+                filters.push(`<strong>Gênero:</strong> ${state.genre}`);
+            }
+            if (state.platform) {
+                filters.push(`<strong>Plataforma:</strong> ${state.platform}`);
+            }
+
+            container.innerHTML = filters.length ? `Filtros aplicados: ${filters.join(" | ")}` : "";
         }
         
         // --- FUNÇÕES DE RENDERIZAÇÃO ---
@@ -99,7 +128,7 @@
             const width = 1700 - margin.left - margin.right;
             const height = 250 - margin.top - margin.bottom;
 
-            const svg = d3.select("#timeline-chart").html("").append("svg").attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            const svg = d3.select("#timeline-chart").html("").append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
             const xScale = d3.scaleLinear().domain(d3.extent(data, d => d.Year)).range([0, width]);
             const yScale = d3.scaleLinear().domain([0, d3.max(data, d => d.total)]).nice().range([height, 0]);
 
@@ -113,7 +142,7 @@
             const brush = d3.brushX().extent([[0, 0], [width, height]]).on("end", async (event) => {
                 if (!event.sourceEvent) return;
                 state.yearRange = event.selection ? event.selection.map(xScale.invert).map(Math.round) : null;
-                rangeDisplay.textContent = state.yearRange ? `Período: ${state.yearRange[0]} - ${state.yearRange[1]}` : "(Todos os anos)";
+                // rangeDisplay.textContent = state.yearRange ? `Período: ${state.yearRange[0]} - ${state.yearRange[1]}` : "(Todos os anos)";
                 await updateAllCharts();
             });
             svg.append("g").attr("class", "brush").call(brush);
@@ -128,10 +157,10 @@
             const data = await vgs.query(`SELECT "Genre", SUM("Global_Sales") AS total FROM ${vgs.table} ${where} GROUP BY "Genre" ORDER BY total DESC LIMIT 10;`);
             
             const margin = {top: 20, right: 60, bottom: 50, left: 140};
-            const width = 800 - margin.left - margin.right;
-            const height = 600 - margin.top - margin.bottom;
+            const width = 600 - margin.left - margin.right;
+            const height = 400 - margin.top - margin.bottom;
 
-            const svg = d3.select("#genre-chart").html("").append("svg").attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            const svg = d3.select("#genre-chart").html("").append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
             const xScale = d3.scaleLinear().domain([0, d3.max(data, d => d.total)]).nice().range([0, width]);
             const yScale = d3.scaleBand().domain(data.map(d => d.Genre).reverse()).range([height, 0]).padding(0.15);
 
@@ -156,10 +185,10 @@
             const data = top10Platforms.map(p => ({ Platform: p, total: dataMap.get(p) || 0 }));
 
             const margin = {top: 20, right: 60, bottom: 50, left: 120};
-            const width = 800 - margin.left - margin.right;
-            const height = 600 - margin.top - margin.bottom;
+            const width = 600 - margin.left - margin.right;
+            const height = 400 - margin.top - margin.bottom;
 
-            const svg = d3.select("#platform-chart").html("").append("svg").attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            const svg = d3.select("#platform-chart").html("").append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
             const xScale = d3.scaleLinear().domain([0, d3.max(data, d => d.total) || 1]).nice().range([0, width]);
             const yScale = d3.scaleBand().domain(top10Platforms.slice().reverse()).range([height, 0]).padding(0.15);
 
@@ -194,7 +223,7 @@
             const width = 800 - margin.left - margin.right;
             const height = 600 - margin.top - margin.bottom;
 
-            const svg = chartContainer.append("svg").attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            const svg = chartContainer.append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
             const xScale = d3.scaleLinear().domain([0, d3.max(data, d => d.Global_Sales)]).nice().range([0, width]);
             const yScale = d3.scaleBand().domain(data.map(d => d.Name).reverse()).range([height, 0]).padding(0.1);
 
@@ -223,13 +252,17 @@
                 chartContainer.append("h3").text("Nenhuma publisher encontrada.").style("text-align", "center").style("margin-top", "5rem"); return;
             }
 
-            const width = 800;
-            const height = 600;
+            const width = 1000;
+            const height = 800;
 
             const pack = d3.pack().size([width, height]).padding(5);
             const root = pack(d3.hierarchy({children: data}).sum(d => d.total));
             
-            const svg = chartContainer.append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("font-size", 10).attr("text-anchor", "middle");
+            const svg = chartContainer.append("svg")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("preserveAspectRatio", "xMidYMid meet")
+                .attr("font-size", 10)
+                .attr("text-anchor", "middle");;
             const color = d3.scaleOrdinal(data.map(d => d.Publisher), d3.schemeTableau10);
             
             const node = svg.selectAll("g").data(root.leaves()).join("g").attr("transform", d => `translate(${d.x},${d.y})`);
